@@ -1,0 +1,21 @@
+# Large raw data — not needed for website or reproducibility
+data/sensors/
+data/era5/
+data/openaq/
+data/census/
+
+# Figures (regenerated from scripts)
+figures/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+.DS_Store
+
+# Logs (keep poller.log out of repo)
+poller.log
+*.log
+
+# Temp
+*.tmp

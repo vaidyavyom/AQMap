@@ -1,0 +1,477 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Chandrapur Air · Live</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=Space+Grotesk:wght@400;500;700&family=Noto+Sans+Devanagari:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#15120c; --ink2:#1e1a12; --ink3:#2a2418;
+    --cream:#f6efe1; --dim:#b7ac95; --faint:#7d745f;
+    --ember:#f2a13a; --ember2:#e07b26; --sage:#93a67e;
+    --line:rgba(246,239,225,.10);
+    --glass:rgba(20,17,11,.80);
+    --ui:'Space Grotesk','Noto Sans Devanagari',system-ui,sans-serif;
+    --disp:'Fraunces','Noto Sans Devanagari',Georgia,serif;
+    --good:#43b06d; --mod:#e0ad2b; --usg:#ec8a2f; --unh:#e34b3a; --vun:#9d51a6; --haz:#8f2333;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;font-family:var(--ui);color:var(--cream);background:#0d0b07;
+    -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+  #map{position:absolute;inset:0;background:#c9d2d8}
+  .aqfield{filter:blur(17px)}
+
+  /* ---------- panel ---------- */
+  #panel{position:absolute;top:20px;left:20px;width:376px;max-width:calc(100vw - 40px);
+    z-index:1000;background:var(--glass);backdrop-filter:blur(22px) saturate(1.15);
+    -webkit-backdrop-filter:blur(22px) saturate(1.15);border:1px solid var(--line);
+    border-radius:22px;padding:22px 22px 18px;box-shadow:0 24px 60px -18px rgba(0,0,0,.65),0 2px 0 rgba(246,239,225,.04) inset;
+    animation:rise .8s cubic-bezier(.19,1,.22,1) both;overflow:hidden}
+  #panel::before{content:"";position:absolute;top:-40%;right:-30%;width:70%;height:70%;
+    background:radial-gradient(circle,rgba(242,161,58,.16),transparent 70%);pointer-events:none}
+  @keyframes rise{from{opacity:0;transform:translateY(18px) scale(.98)}to{opacity:1;transform:none}}
+  .stag{animation:fade .7s ease both}
+  .stag:nth-child(2){animation-delay:.06s}.stag:nth-child(3){animation-delay:.1s}
+  @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+  .top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;position:relative}
+  .brand{line-height:1}
+  .brand .over{font-size:9.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--ember);font-weight:700}
+  .brand .name{font-family:var(--disp);font-weight:900;font-size:23px;letter-spacing:-.01em;margin-top:4px;color:var(--cream)}
+  .brand .name em{font-style:italic;color:var(--ember)}
+  .lang{display:flex;background:rgba(246,239,225,.07);border:1px solid var(--line);border-radius:999px;padding:2px}
+  .lang button{border:0;background:transparent;color:var(--dim);font-family:var(--ui);font-weight:700;
+    font-size:11.5px;padding:5px 10px;border-radius:999px;cursor:pointer;transition:.25s}
+  .lang button.on{background:var(--ember);color:#241703}
+
+  .loc{position:relative;margin-top:16px;font-size:11px;letter-spacing:.02em;color:var(--dim);text-transform:uppercase;font-weight:600}
+  .locname{position:relative;font-family:var(--disp);font-size:16px;font-weight:600;color:var(--cream);margin-top:2px}
+
+  .hero{position:relative;display:flex;align-items:baseline;gap:12px;margin-top:6px}
+  #aqi{font-family:var(--disp);font-weight:900;font-size:78px;line-height:.9;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+  .heroR{padding-bottom:8px}
+  #cat{font-family:var(--disp);font-weight:600;font-size:17px;line-height:1.05}
+  .catbar{height:5px;border-radius:999px;margin-top:7px;width:120px;transition:.5s}
+  .aqisub{font-size:10.5px;color:var(--faint);letter-spacing:.03em;margin-top:5px}
+
+  /* advisory */
+  .adv{position:relative;margin-top:16px;border-radius:14px;background:rgba(246,239,225,.05);
+    border:1px solid var(--line);border-left:3px solid var(--ember);padding:11px 13px;
+    transition:.4s;overflow:hidden}
+  .adv .row{display:flex;gap:9px;font-size:12.5px;line-height:1.4}
+  .adv .row+.row{margin-top:7px}
+  .adv .k{flex:0 0 auto;font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ember);
+    font-weight:700;width:34px;padding-top:2px}
+  .adv .v{color:var(--cream);opacity:.92}
+
+  /* metrics */
+  .metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:14px}
+  .met{background:rgba(246,239,225,.045);border:1px solid var(--line);border-radius:11px;padding:8px 9px;transition:.2s}
+  .met:hover{background:rgba(246,239,225,.09);transform:translateY(-1px)}
+  .met .ml{font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);font-weight:600}
+  .met .mv{font-family:var(--disp);font-weight:600;font-size:17px;margin-top:3px;font-variant-numeric:tabular-nums}
+  .met .mu{font-size:9.5px;color:var(--dim);font-weight:500}
+
+  /* trend */
+  .trend{margin-top:14px}
+  .trend .tl{display:flex;justify-content:space-between;align-items:baseline;font-size:10px;
+    letter-spacing:.08em;text-transform:uppercase;color:var(--faint);font-weight:600}
+  .trend .tl b{color:var(--dim);font-weight:700}
+  #spark{display:block;width:100%;height:52px;margin-top:6px}
+  .twait{font-size:11px;color:var(--faint);margin-top:8px;font-style:italic}
+
+  /* buttons */
+  .btns{display:flex;gap:9px;margin-top:16px}
+  .btns button{flex:1;border:0;border-radius:12px;padding:12px 0;font-family:var(--ui);font-size:13px;
+    font-weight:700;cursor:pointer;transition:.22s cubic-bezier(.2,.8,.2,1);letter-spacing:.01em}
+  #locate{background:linear-gradient(180deg,var(--ember),var(--ember2));color:#241703;
+    box-shadow:0 8px 20px -8px rgba(242,161,58,.7)}
+  #locate:hover{transform:translateY(-2px);box-shadow:0 12px 26px -8px rgba(242,161,58,.85)}
+  #locate:active{transform:translateY(0)}
+  #hint{background:rgba(246,239,225,.08);color:var(--cream);border:1px solid var(--line)}
+  #hint:hover{background:rgba(246,239,225,.14)}
+
+  .footrow{display:flex;align-items:center;justify-content:space-between;margin-top:14px;gap:10px}
+  .switch{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--dim);cursor:pointer;user-select:none}
+  .switch input{position:absolute;opacity:0;pointer-events:none}
+  .track{width:32px;height:18px;border-radius:999px;background:rgba(246,239,225,.16);position:relative;transition:.25s;flex:0 0 auto}
+  .track::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;
+    background:var(--cream);transition:.25s}
+  .switch input:checked+.track{background:var(--ember)}
+  .switch input:checked+.track::after{transform:translateX(14px)}
+  .srcbtn{background:none;border:0;color:var(--ember);font-family:var(--ui);font-weight:700;font-size:11.5px;
+    cursor:pointer;display:flex;align-items:center;gap:5px;padding:0;transition:.2s}
+  .srcbtn:hover{color:var(--cream)}
+  .srcbtn svg{width:13px;height:13px}
+
+  /* banner + stamp */
+  .banner{position:absolute;top:20px;left:50%;transform:translateX(-50%);z-index:1000;
+    font-size:11px;letter-spacing:.03em;background:var(--glass);backdrop-filter:blur(14px);
+    color:var(--dim);padding:6px 14px;border-radius:999px;border:1px solid var(--line);
+    display:flex;align-items:center;gap:8px;white-space:nowrap;animation:rise .8s .1s both}
+  .banner .dot{width:7px;height:7px;border-radius:50%;background:var(--ember);box-shadow:0 0 0 0 rgba(242,161,58,.6);
+    animation:pulse 2.2s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(242,161,58,.55)}70%{box-shadow:0 0 0 7px rgba(242,161,58,0)}100%{box-shadow:0 0 0 0 rgba(242,161,58,0)}}
+
+  /* legend */
+  .legend{background:var(--glass)!important;backdrop-filter:blur(14px);border:1px solid var(--line);
+    border-radius:14px;padding:11px 13px;color:var(--cream)}
+  .legend .lt{font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);font-weight:600}
+  .legend .bar{height:9px;width:172px;border-radius:999px;margin:7px 0 4px;
+    background:linear-gradient(90deg,#00a05a,#78be3c,#dcc828,#e6961e,#d03c2c,#8f3f97)}
+  .legend .ticks{display:flex;justify-content:space-between;width:172px;color:var(--faint);font-size:9.5px}
+
+  /* story modal */
+  .modal{position:fixed;inset:0;z-index:2000;display:none;align-items:center;justify-content:center;padding:22px;
+    background:rgba(8,6,3,.62);backdrop-filter:blur(6px)}
+  .modal.on{display:flex;animation:fade .3s ease both}
+  .sheet{max-width:560px;width:100%;max-height:86vh;overflow:auto;background:linear-gradient(180deg,var(--ink2),var(--ink));
+    border:1px solid var(--line);border-radius:22px;padding:30px 32px;box-shadow:0 40px 90px -20px rgba(0,0,0,.8);
+    animation:pop .4s cubic-bezier(.19,1,.22,1) both;position:relative}
+  @keyframes pop{from{opacity:0;transform:translateY(16px) scale(.97)}to{opacity:1;transform:none}}
+  .sheet .over{font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--ember);font-weight:700}
+  .sheet h2{font-family:var(--disp);font-weight:900;font-size:29px;line-height:1.08;margin:8px 0 4px;letter-spacing:-.02em}
+  .sheet p{font-size:14px;line-height:1.65;color:var(--dim);margin:14px 0 0}
+  .sheet p b{color:var(--cream);font-weight:600}
+  .sheet .x{position:absolute;top:18px;right:18px;width:34px;height:34px;border-radius:50%;border:1px solid var(--line);
+    background:rgba(246,239,225,.06);color:var(--cream);font-size:17px;cursor:pointer;transition:.2s}
+  .sheet .x:hover{background:rgba(246,239,225,.14)}
+  .plumechip{display:inline-flex;align-items:center;gap:7px;margin-top:18px;padding:7px 12px;border-radius:999px;
+    background:rgba(242,161,58,.12);border:1px solid rgba(242,161,58,.3);color:var(--ember);font-size:12px;font-weight:600}
+
+  .leaflet-control-attribution{background:rgba(20,17,11,.6)!important;color:var(--faint)!important;font-size:9px!important}
+  .leaflet-control-attribution a{color:var(--dim)!important}
+  .leaflet-bar a{background:var(--glass)!important;color:var(--cream)!important;border-color:var(--line)!important}
+  .leaflet-control-layers{background:var(--glass)!important;backdrop-filter:blur(14px);border:1px solid var(--line)!important;
+    border-radius:12px!important;color:var(--cream)}
+  .plant-lbl{background:var(--glass);border:1px solid var(--line);border-radius:8px;color:var(--cream)!important;
+    font-family:var(--ui);font-size:10px;font-weight:600;letter-spacing:.05em;padding:3px 7px}
+  .plant-lbl::before{border-top-color:var(--glass)!important}
+
+  @media(max-width:640px){
+    #panel{top:auto;bottom:0;left:0;right:0;width:auto;max-width:none;border-radius:22px 22px 0 0;
+      max-height:82vh;overflow:auto;padding:18px 18px 22px}
+    .banner{top:14px;font-size:10px}
+    #aqi{font-size:64px}
+    .legend{display:none}
+  }
+</style>
+</head>
+<body>
+<div id="map"></div>
+
+<div id="panel">
+  <div class="top stag">
+    <div class="brand">
+      <div class="over" data-i="brandOver">LIVE AIR QUALITY NETWORK</div>
+      <div class="name">Chandrapur<em>Air</em></div>
+    </div>
+    <div class="lang" id="lang">
+      <button data-l="en" class="on">EN</button>
+      <button data-l="mr">मराठी</button>
+    </div>
+  </div>
+
+  <div class="stag">
+    <div class="loc" data-i="near">Air quality near you</div>
+    <div class="locname" id="locname" data-i="prompt">Use your location or tap the map</div>
+    <div class="hero">
+      <div id="aqi" style="color:var(--faint)">–</div>
+      <div class="heroR">
+        <div id="cat">—</div>
+        <div class="catbar" id="catbar" style="background:var(--faint)"></div>
+        <div class="aqisub" id="aqisub"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="adv stag" id="adv" style="display:none">
+    <div class="row"><div class="k" data-i="who">Who</div><div class="v" id="advWho"></div></div>
+    <div class="row"><div class="k" data-i="what">Do</div><div class="v" id="advWhat"></div></div>
+  </div>
+
+  <div class="metrics" id="metrics" style="display:none">
+    <div class="met"><div class="ml">PM2.5</div><div class="mv" id="mPm25">–</div><div class="mu">µg/m³</div></div>
+    <div class="met"><div class="ml">PM10</div><div class="mv" id="mPm10">–</div><div class="mu">µg/m³</div></div>
+    <div class="met"><div class="ml">PM1</div><div class="mv" id="mPm1">–</div><div class="mu">µg/m³</div></div>
+    <div class="met"><div class="ml" data-i="temp">Temp</div><div class="mv" id="mTemp">–</div><div class="mu">°C</div></div>
+    <div class="met"><div class="ml" data-i="humid">Humidity</div><div class="mv" id="mHum">–</div><div class="mu">%</div></div>
+    <div class="met"><div class="ml">AQI</div><div class="mv" id="mAqi">–</div><div class="mu">US</div></div>
+  </div>
+
+  <div class="trend stag">
+    <div class="tl"><span data-i="trend">City network · last 48h</span><b id="trendRange"></b></div>
+    <canvas id="spark" width="640" height="104"></canvas>
+    <div class="twait" id="twait" data-i="trendWait">Trend builds as data collects</div>
+  </div>
+
+  <div class="btns">
+    <button id="locate" data-i="useLoc">Use my location</button>
+    <button id="hint" data-i="tapMap">Tap map</button>
+  </div>
+
+  <div class="footrow">
+    <label class="switch"><input type="checkbox" id="stretch"><span class="track"></span><span data-i="contrast">Enhance contrast</span></label>
+  </div>
+</div>
+
+<div class="banner"><span class="dot"></span><span data-i="banner">Provisional · monitor-matched calibration (RH correction pending)</span><span id="liveMeta" style="color:var(--faint)"></span></div>
+
+<script>
+/* ============ config / data engine (unchanged logic) ============ */
+// Published coordinates are deliberately OFFSET ~250-400 m from the real monitors so
+// the exact host buildings can't be identified from the page source or the field.
+// Real coordinates live only in the poller (server-side) and your own records.
+const MONITORS = [
+  {id:"1",lat:19.97900,lon:79.23528},{id:"2",lat:19.97193,lon:79.28861},
+  {id:"3",lat:19.98220,lon:79.29637},{id:"4",lat:19.97044,lon:79.31218},
+  {id:"5",lat:19.95800,lon:79.31874},{id:"6",lat:19.97303,lon:79.31220},
+  {id:"7",lat:20.00758,lon:79.30282},{id:"8",lat:19.94699,lon:79.29458},
+  {id:"9",lat:19.93535,lon:79.32703},{id:"10",lat:19.95467,lon:79.32734},
+  {id:"R1",lat:19.9629,lon:79.298714,ref:true},   // Chauhan Colony CPCB reference (public station)
+];
+const INACTIVE=[];   // all units in use; poller auto-drops any with no live data
+const BBOX={s:19.895,w:79.250,n:20.020,e:79.365};
+const CITY=L.latLngBounds([19.918,79.268],[20.00,79.352]);
+const GRID=170, REFRESH_MS=60000;
+
+const STOPS=[[0,[0,160,90]],[12,[120,190,60]],[25,[220,200,40]],
+             [35,[230,150,30]],[55,[208,60,44]],[90,[143,63,151]],[150,[126,0,35]]];
+function ramp(x){
+  if(x<=STOPS[0][0])return STOPS[0][1];
+  for(let i=1;i<STOPS.length;i++){if(x<=STOPS[i][0]){
+    const [v0,c0]=STOPS[i-1],[v1,c1]=STOPS[i],t=(x-v0)/(v1-v0);
+    return [0,1,2].map(k=>Math.round(c0[k]+(c1[k]-c0[k])*t));}}
+  return STOPS[STOPS.length-1][1];
+}
+let STRETCH=false, MINPM=0, MAXPM=1;
+function colorFor(pm){let x=pm;if(STRETCH&&MAXPM>MINPM)x=(pm-MINPM)/(MAXPM-MINPM)*45;return ramp(x);}
+function kmDist(la1,lo1,la2,lo2){const dy=(la2-la1)*111.32,dx=(lo2-lo1)*111.32*Math.cos(la1*Math.PI/180);return Math.sqrt(dx*dx+dy*dy);}
+function idwOn(lat,lon,pts,field){
+  let num=0,den=0,dmin=1e9,d2=1e9;
+  for(const p of pts){ if(p[field]==null)continue;
+    const d=kmDist(lat,lon,p.lat,p.lon);
+    if(d<dmin){d2=dmin;dmin=d;}else if(d<d2){d2=d;}
+    if(d<0.05)return{v:p[field],dmin:0,d2:0};
+    const w=1/(d*d); num+=w*p[field]; den+=w; }
+  return den?{v:num/den,dmin,d2}:{v:null,dmin:1e9,d2:1e9};
+}
+function aqiFromPM(pm){
+  const bp=[[0,12,0,50],[12.1,35.4,51,100],[35.5,55.4,101,150],[55.5,150.4,151,200],
+            [150.5,250.4,201,300],[250.5,350.4,301,400],[350.5,500.4,401,500]];
+  for(const[cl,ch,al,ah]of bp){if(pm<=ch)return Math.round((ah-al)/(ch-cl)*(pm-cl)+al);}return 500;
+}
+function catKey(aqi){if(aqi<=50)return'good';if(aqi<=100)return'mod';if(aqi<=150)return'usg';if(aqi<=200)return'unh';if(aqi<=300)return'vun';return'haz';}
+const CATCOL={good:'var(--good)',mod:'var(--mod)',usg:'var(--usg)',unh:'var(--unh)',vun:'var(--vun)',haz:'var(--haz)'};
+
+async function getReadings(){
+  try{const r=await fetch("latest.json?_="+Date.now());if(!r.ok)throw 0;return await r.json();}
+  catch(e){const m={monitors:{},generated:new Date().toISOString(),mock:true};
+    MONITORS.forEach(x=>{if(!INACTIVE.includes(x.id))m.monitors[x.id]={pm25:12+Math.random()*30,pm10:20+Math.random()*40,pm1:8+Math.random()*16,temperature:26+Math.random()*4,humidity:70+Math.random()*25,aqi:40+Math.random()*70};});
+    return m;}
+}
+let ACTIVE=[];
+
+/* ============ i18n ============ */
+const I18N={
+ en:{
+  brandOver:"Live air quality network", near:"Air quality near you",
+  prompt:"Use your location or tap the map", useLoc:"Use my location", tapMap:"Tap map",
+  contrast:"Enhance contrast", outside:"Outside monitored area", yourLoc:"Your location",
+  temp:"Temp", humid:"Humidity", who:"Who", what:"Do",
+  trend:"City network · last 48h", trendWait:"Trend builds as data collects",
+  banner:"Provisional · monitor-matched calibration (RH correction pending)",
+  sensors:n=>`from ${n} sensors · interpolated (IDW)`,
+  updated:t=>`Updated ${t}`, demo:"Demo data", live:n=>`${n} live`,
+  cats:{good:"Good",mod:"Moderate",usg:"Unhealthy for Sensitive Groups",unh:"Unhealthy",vun:"Very Unhealthy",haz:"Hazardous"},
+  adv:{
+   good:{who:"Everyone",what:"Air is clean — enjoy normal outdoor activity."},
+   mod:{who:"Unusually sensitive people",what:"Fine for almost everyone; the very sensitive can ease intense outdoor exertion."},
+   usg:{who:"Children, elderly, pregnant, asthma & heart/lung conditions",what:"Limit prolonged or intense outdoor exertion. Keep reliever inhalers handy."},
+   unh:{who:"Everyone — sensitive groups most",what:"Cut back outdoor exertion; sensitive groups move activity indoors. A well-fitted mask helps."},
+   vun:{who:"Everyone",what:"Avoid outdoor exertion; keep windows closed and filter indoor air if you can."},
+   haz:{who:"Everyone — health emergency",what:"Stay indoors, seal windows, filter the air, wear an N95 if you must go out."},
+  },
+ },
+ mr:{
+  brandOver:"थेट हवा गुणवत्ता नेटवर्क", near:"तुमच्या जवळील हवेची गुणवत्ता",
+  prompt:"तुमचे स्थान वापरा किंवा नकाशावर टॅप करा", useLoc:"माझे स्थान", tapMap:"नकाशा टॅप करा",
+  contrast:"कॉन्ट्रास्ट वाढवा", outside:"निरीक्षण क्षेत्राबाहेर", yourLoc:"तुमचे स्थान",
+  temp:"तापमान", humid:"आर्द्रता", who:"कोण", what:"काय",
+  trend:"शहर नेटवर्क · मागील ४८ तास", trendWait:"डेटा जमा होताच ट्रेंड दिसेल",
+  banner:"प्राथमिक · मॉनिटर-जुळवणी कॅलिब्रेशन (आर्द्रता सुधारणा प्रलंबित)",
+  sensors:n=>`${n} सेन्सरवरून · इंटरपोलेटेड (IDW)`,
+  updated:t=>`अद्यतनित ${t}`, demo:"नमुना डेटा", live:n=>`${n} थेट`,
+  cats:{good:"चांगली",mod:"मध्यम",usg:"संवेदनशील गटांसाठी अपायकारक",unh:"अपायकारक",vun:"अत्यंत अपायकारक",haz:"धोकादायक"},
+  adv:{
+   good:{who:"सर्वांसाठी",what:"हवा स्वच्छ आहे — नेहमीप्रमाणे बाहेर वावरा."},
+   mod:{who:"अति-संवेदनशील व्यक्ती",what:"जवळपास सर्वांसाठी ठीक; अति-संवेदनशील लोकांनी तीव्र श्रम टाळावा."},
+   usg:{who:"लहान मुले, वृद्ध, गर्भवती, दमा व हृदय/फुफ्फुसाचे रुग्ण",what:"दीर्घ किंवा तीव्र श्रम मर्यादित करा. इनहेलर जवळ ठेवा."},
+   unh:{who:"सर्वजण — विशेषतः संवेदनशील गट",what:"बाहेरील श्रम कमी करा; संवेदनशील गटांनी घरात राहावे. योग्य मास्क वापरा."},
+   vun:{who:"सर्वांसाठी",what:"बाहेरील श्रम टाळा; खिडक्या बंद ठेवा व शक्य असल्यास हवा गाळा."},
+   haz:{who:"सर्वजण — आरोग्य आणीबाणी",what:"घरातच राहा, खिडक्या बंद करा, हवा गाळा, बाहेर जाताना N95 वापरा."},
+  },
+ }
+};
+let lang="en";
+function t(){return I18N[lang];}
+function renderStatic(){
+  document.documentElement.lang=lang;
+  document.querySelectorAll('[data-i]').forEach(el=>{
+    const k=el.getAttribute('data-i'); const v=t()[k];
+    if(typeof v==="string")el.textContent=v;
+  });
+}
+
+/* ============ map ============ */
+const streets=L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{maxZoom:19,minZoom:11,attribution:'© OpenStreetMap © CARTO'});
+const sat=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,minZoom:11,attribution:'© Esri'});
+const map=L.map('map',{layers:[sat],minZoom:13,maxZoom:17,maxBounds:CITY,maxBoundsViscosity:1.0,zoomControl:false}).setView([19.958,79.308],13);
+L.control.zoom({position:'topright'}).addTo(map);
+L.control.layers({"Map":streets,"Satellite":sat},null,{position:'topright'}).addTo(map);
+
+let fieldOverlay=null;
+function drawField(){
+  if(ACTIVE.length===0)return;
+  const c=document.createElement('canvas');c.width=GRID;c.height=GRID;
+  const ctx=c.getContext('2d'),img=ctx.createImageData(GRID,GRID),D=img.data;
+  for(let py=0;py<GRID;py++){const lat=BBOX.n-(py/GRID)*(BBOX.n-BBOX.s);
+    for(let px=0;px<GRID;px++){const lon=BBOX.w+(px/GRID)*(BBOX.e-BBOX.w);
+      const {v,d2}=idwOn(lat,lon,ACTIVE,"pm25");const i=(py*GRID+px)*4;
+      if(v==null){D[i+3]=0;continue;}
+      const cover=Math.max(0,Math.min(1,(6.5-d2)/(6.5-3)));
+      if(cover<=0){D[i+3]=0;continue;}
+      const col=colorFor(v);
+      D[i]=col[0];D[i+1]=col[1];D[i+2]=col[2];D[i+3]=Math.round(190*cover);}}
+  ctx.putImageData(img,0,0);
+  if(fieldOverlay)map.removeLayer(fieldOverlay);
+  fieldOverlay=L.imageOverlay(c.toDataURL(),[[BBOX.s,BBOX.w],[BBOX.n,BBOX.e]],{interactive:false,className:'aqfield'}).addTo(map);
+}
+
+/* ============ readout ============ */
+let queryMarker=null,queryLL=null,queryName=null,aqiShown=0,aqiRAF=null;
+function fmt1(x){return x==null?"–":(Math.round(x*10)/10).toString();}
+function animateAqi(target,color){
+  const el=document.getElementById('aqi');el.style.color=color;
+  cancelAnimationFrame(aqiRAF);const from=aqiShown,t0=performance.now();
+  (function step(now){const p=Math.min(1,(now-t0)/650),e=1-Math.pow(1-p,3);
+    el.textContent=Math.round(from+(target-from)*e);
+    if(p<1)aqiRAF=requestAnimationFrame(step);else aqiShown=target;})(performance.now());
+}
+function setMet(id,v){document.getElementById(id).textContent=v==null?"–":fmt1(v);}
+function evaluate(lat,lon,name){
+  queryLL={lat,lon};queryName=name||null;
+  const pm=idwOn(lat,lon,ACTIVE,"pm25");
+  const nm=name==="__me__"?t().yourLoc:(name||("Lat "+lat.toFixed(4)+", Lon "+lon.toFixed(4)));
+  document.getElementById('locname').removeAttribute('data-i');
+  document.getElementById('locname').textContent=nm;
+  const A=document.getElementById('aqi'),C=document.getElementById('cat'),bar=document.getElementById('catbar'),
+        sub=document.getElementById('aqisub'),adv=document.getElementById('adv'),met=document.getElementById('metrics');
+  if(pm.v==null||pm.d2>7){
+    cancelAnimationFrame(aqiRAF);aqiShown=0;A.textContent="–";A.style.color="var(--faint)";
+    C.textContent=t().outside;C.style.color="var(--dim)";bar.style.background="var(--faint)";
+    sub.textContent="";adv.style.display="none";met.style.display="none";
+  }else{
+    const aqi=aqiFromPM(pm.v),key=catKey(aqi),col=CATCOL[key];
+    animateAqi(aqi,col);C.textContent=t().cats[key];C.style.color=col;bar.style.background=col;
+    sub.textContent=t().sensors(ACTIVE.length);
+    const pm10=idwOn(lat,lon,ACTIVE,"pm10").v,pm1=idwOn(lat,lon,ACTIVE,"pm1").v,
+          temp=idwOn(lat,lon,ACTIVE,"temperature").v,hum=idwOn(lat,lon,ACTIVE,"humidity").v;
+    setMet('mPm25',pm.v);setMet('mPm10',pm10);setMet('mPm1',pm1);
+    setMet('mTemp',temp);setMet('mHum',hum);document.getElementById('mAqi').textContent=aqi;
+    met.style.display="grid";
+    const a=t().adv[key];document.getElementById('advWho').textContent=a.who;
+    document.getElementById('advWhat').textContent=a.what;
+    adv.style.borderLeftColor=col;adv.style.display="block";
+    adv.style.animation="none";adv.offsetHeight;adv.style.animation="fade .45s ease both";
+  }
+  if(queryMarker)map.removeLayer(queryMarker);
+  queryMarker=L.circleMarker([lat,lon],{radius:7,color:"#fff",weight:2,fillColor:"#15120c",fillOpacity:.9}).addTo(map);
+}
+
+/* ============ trend sparkline ============ */
+async function loadTrend(){
+  try{
+    const r=await fetch('history.csv?_='+Date.now());if(!r.ok)throw 0;
+    const lines=(await r.text()).trim().split('\n');if(lines.length<3)throw 0;
+    const cut=Date.now()-48*3600*1000,b={};
+    for(let i=1;i<lines.length;i++){const c=lines[i].split(',');const ts=Date.parse(c[0]);
+      const pm=parseFloat(c[3]);if(isNaN(ts)||ts<cut||isNaN(pm))continue;
+      const h=Math.floor(ts/3600000);(b[h]=b[h]||{s:0,n:0});b[h].s+=pm;b[h].n++;}
+    const ks=Object.keys(b).map(Number).sort((a,b)=>a-b);
+    return ks.map(k=>({t:k*3600000,pm:b[k].s/b[k].n}));
+  }catch(e){return[];}
+}
+function drawSpark(series){
+  const cv=document.getElementById('spark'),wait=document.getElementById('twait'),rng=document.getElementById('trendRange');
+  if(!series||series.length<2){cv.style.display="none";wait.style.display="block";rng.textContent="";return;}
+  cv.style.display="block";wait.style.display="none";
+  const W=cv.width,H=cv.height,pad=10,ctx=cv.getContext('2d');ctx.clearRect(0,0,W,H);
+  const xs=series.map(p=>p.t),ys=series.map(p=>p.pm);
+  const x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys),yr=(y1-y0)||1;
+  const X=t=>pad+(t-x0)/((x1-x0)||1)*(W-2*pad),Y=v=>H-pad-((v-y0)/yr)*(H-2*pad);
+  const grad=ctx.createLinearGradient(0,0,0,H);grad.addColorStop(0,"rgba(242,161,58,.45)");grad.addColorStop(1,"rgba(242,161,58,0)");
+  ctx.beginPath();ctx.moveTo(X(xs[0]),Y(ys[0]));series.forEach(p=>ctx.lineTo(X(p.t),Y(p.pm)));
+  ctx.lineTo(X(xs[xs.length-1]),H-pad);ctx.lineTo(X(xs[0]),H-pad);ctx.closePath();ctx.fillStyle=grad;ctx.fill();
+  ctx.beginPath();ctx.moveTo(X(xs[0]),Y(ys[0]));series.forEach(p=>ctx.lineTo(X(p.t),Y(p.pm)));
+  ctx.strokeStyle="#f2a13a";ctx.lineWidth=2.4;ctx.lineJoin="round";ctx.stroke();
+  const lx=X(xs[xs.length-1]),ly=Y(ys[ys.length-1]);
+  ctx.beginPath();ctx.arc(lx,ly,4,0,7);ctx.fillStyle="#f6efe1";ctx.fill();ctx.lineWidth=2;ctx.strokeStyle="#f2a13a";ctx.stroke();
+  rng.textContent=Math.round(y0)+"–"+Math.round(y1)+" µg/m³";
+}
+let trendSeries=[];
+async function refreshTrend(){trendSeries=await loadTrend();drawSpark(trendSeries);}
+
+/* ============ events ============ */
+document.getElementById('locate').onclick=()=>{
+  if(!navigator.geolocation){alert("Geolocation not supported");return;}
+  navigator.geolocation.getCurrentPosition(
+    p=>{map.setView([p.coords.latitude,p.coords.longitude],15);evaluate(p.coords.latitude,p.coords.longitude,"__me__");},
+    ()=>alert("Couldn't get your location. Tap the map instead."));
+};
+document.getElementById('hint').onclick=()=>alert("Tap anywhere on the map to see the air quality there.");
+document.getElementById('stretch').onchange=e=>{STRETCH=e.target.checked;drawField();};
+map.on('click',e=>evaluate(e.latlng.lat,e.latlng.lng));
+document.querySelectorAll('#lang button').forEach(b=>b.onclick=()=>{
+  lang=b.getAttribute('data-l');
+  document.querySelectorAll('#lang button').forEach(x=>x.classList.toggle('on',x===b));
+  renderStatic();
+  if(queryLL)evaluate(queryLL.lat,queryLL.lon,queryName);
+  stamp();
+});
+
+/* ============ loop ============ */
+let lastGen=null;
+function stamp(){
+  const el=document.getElementById('liveMeta');if(!lastGen){el.textContent="";return;}
+  const n=ACTIVE.length;
+  if(lastGen.mock){el.textContent=" · "+t().demo;return;}
+  const time=new Date(lastGen.generated).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+  el.textContent=" · "+t().live(n)+" · "+t().updated(time);
+}
+async function refresh(){
+  const data=await getReadings(),mons=data.monitors||{};
+  ACTIVE=MONITORS.map(m=>({...m,...(mons[m.id]||{})})).filter(m=>m.pm25!=null);
+  const pms=ACTIVE.map(m=>m.pm25);MINPM=Math.min(...pms);MAXPM=Math.max(...pms);
+  lastGen=data;drawField();stamp();
+  if(queryLL)evaluate(queryLL.lat,queryLL.lon,queryName);
+}
+renderStatic();
+refresh();refreshTrend();
+setInterval(refresh,REFRESH_MS);
+setInterval(refreshTrend,10*60000);
+
+/* legend */
+const lg=L.control({position:'bottomright'});
+lg.onAdd=function(){const d=L.DomUtil.create('div','legend');
+  d.innerHTML="<div class='lt'>PM2.5 · µg/m³</div><div class='bar'></div><div class='ticks'><span>0</span><span>12</span><span>25</span><span>35</span><span>55</span><span>90+</span></div>";
+  return d;};
+lg.addTo(map);
+</script>
+</body>
+</html>
